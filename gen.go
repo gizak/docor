@@ -34,7 +34,9 @@ func newRawDoc() *Doc {
 
 func NewBlankDoc() *Doc {
 	d := newRawDoc()
-	css := rice.MustFindBox("materialize/css").MustString("materialize.css")
+	css := rice.MustFindBox("resources/css").MustString("materialize.css")
+	cssCodeHighlight := rice.MustFindBox("resources/css").MustString("prism.css")
+
 	d.head.AppendChild(
 		&html.Node{
 			Type: html.ElementNode,
@@ -43,6 +45,18 @@ func NewBlankDoc() *Doc {
 				Type: html.TextNode,
 				Data: css,
 			}})
+	d.head.AppendChild(
+		&html.Node{
+			Type: html.ElementNode,
+			Data: "style",
+			FirstChild: &html.Node{
+				Type: html.TextNode,
+				Data: cssCodeHighlight,
+			}})
+
+	jsCodeHighlight := rice.MustFindBox("resources/js").MustString("prism.js")
+	d.head.AppendChild(textNode("script", jsCodeHighlight, genAttrs("type", "text/javascript")))
+
 	return d
 }
 
@@ -71,6 +85,10 @@ func (d *Doc) AddTitle(title string) {
 
 func (d *Doc) AddSection(title string) {
 	d.body.AppendChild(textNode("h3", title, nil))
+}
+
+func (d *Doc) AddSubsection(title string) {
+	d.body.AppendChild(textNode("h4", title, nil))
 }
 
 func (d *Doc) AddPre(content string) {
@@ -103,7 +121,7 @@ func rowCardNode(width int) *html.Node {
 	return row
 }
 
-func (d *Doc) AddImgFromUri(url string, width int) {
+func (d *Doc) AddImgFromURI(url string, width int) {
 	row := rowCardNode(width)
 	row.FirstChild.FirstChild.AppendChild(&html.Node{
 		Type: html.ElementNode,
@@ -115,6 +133,43 @@ func (d *Doc) AddImgFromUri(url string, width int) {
 			Attr: genAttrs("src", url),
 		}})
 
+	d.body.AppendChild(row)
+}
+
+func (d *Doc) AddCode(code, lang string) {
+	pre := &html.Node{
+		Type: html.ElementNode,
+		Data: "pre",
+		FirstChild: &html.Node{
+			Type: html.ElementNode,
+			Data: "code",
+			Attr: genAttrs("class", "language-"+lang),
+			FirstChild: &html.Node{
+				Type: html.TextNode,
+				Data: code,
+			}}}
+	d.body.AppendChild(pre)
+}
+
+func (d *Doc) AddDetailImgFromURI(url string, width int, title, titleColor, description string) {
+	row := rowCardNode(width)
+	row.FirstChild.FirstChild.AppendChild(&html.Node{
+		Type: html.ElementNode,
+		Data: "div",
+		Attr: genAttrs("class", "card-image")})
+
+	row.FirstChild.FirstChild.FirstChild.AppendChild(&html.Node{
+		Type: html.ElementNode,
+		Data: "img",
+		Attr: genAttrs("src", url)})
+
+	row.FirstChild.FirstChild.FirstChild.AppendChild(textNode("span", title, genAttrs("class", "card-title "+titleColor+"-text")))
+
+	row.FirstChild.FirstChild.AppendChild(&html.Node{
+		Type:       html.ElementNode,
+		Data:       "div",
+		Attr:       genAttrs("class", "card-content"),
+		FirstChild: textNode("p", description, nil)})
 	d.body.AppendChild(row)
 }
 
@@ -149,7 +204,48 @@ func (d *Doc) AddChartLineXsYs(xs, ys []float64, w, h int) {
 		d.body.AppendChild(row)
 	}
 }
+
+func (d *Doc) AddTable(thead []string, tbody [][]string) {
+	tbl := &html.Node{
+		Type: html.ElementNode,
+		Data: "table",
+		Attr: genAttrs("class", "hoverable"),
+	}
+
+	th := &html.Node{
+		Type: html.ElementNode,
+		Data: "thead",
+		FirstChild: &html.Node{
+			Type: html.ElementNode,
+			Data: "tr",
+		}}
+	for _, v := range thead {
+		th.FirstChild.AppendChild(textNode("th", v, nil))
+	}
+
+	tb := &html.Node{
+		Type: html.ElementNode,
+		Data: "tbody",
+	}
+
+	for i := range tbody {
+		tr := &html.Node{
+			Type: html.ElementNode,
+			Data: "tr",
+		}
+		for _, v := range tbody[i] {
+			tr.AppendChild(textNode("td", v, nil))
+		}
+		tb.AppendChild(tr)
+	}
+
+	tbl.AppendChild(th)
+	tbl.AppendChild(tb)
+	d.body.AppendChild(tbl)
+}
+
 func (d *Doc) SaveTo(fname string) error {
+
 	html.Render(d.buf, d.root)
 	return ioutil.WriteFile(fname, d.buf.Bytes(), 0777)
 }
