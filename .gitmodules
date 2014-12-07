@@ -1,0 +1,4 @@
+[submodule "example"]
+	path = example
+	url = https://github.com/gizak/docor.git
+	branch = gh-pages
